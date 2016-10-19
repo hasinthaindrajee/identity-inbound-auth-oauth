@@ -622,8 +622,9 @@ public class OAuthAdminService extends AbstractAdmin {
                                 }
                             }
                             triggerPostRevokeListeners(revokeRequestDTO, new OAuthRevocationResponseDTO
-                                    (), accessTokenDOs.toArray(new AccessTokenDO[accessTokenDOs.size()]));
+                                    (), accessTokenDO);
                         }
+
 
                         try {
                             tokenMgtDAO.revokeOAuthConsentByApplicationAndUser(tenantAwareUserName, tenantDomain, appName);
@@ -641,9 +642,8 @@ public class OAuthAdminService extends AbstractAdmin {
             revokeRespDTO.setError(true);
             revokeRespDTO.setErrorCode(OAuth2ErrorCodes.INVALID_REQUEST);
             revokeRespDTO.setErrorMsg("Invalid revocation request");
-
             //passing a single element array with null element to make sure listeners are triggered at least once
-            triggerPostRevokeListeners(revokeRequestDTO, revokeRespDTO, new AccessTokenDO[]{null});
+            triggerPostRevokeListeners(revokeRequestDTO, revokeRespDTO, new AccessTokenDO());
             return revokeRespDTO;
         }
         return new OAuthRevocationResponseDTO();
@@ -692,19 +692,17 @@ public class OAuthAdminService extends AbstractAdmin {
     }
 
     private void triggerPostRevokeListeners(OAuthRevocationRequestDTO revokeRequestDTO,
-                                            OAuthRevocationResponseDTO revokeRespDTO, AccessTokenDO[] accessTokenDOs) {
+                                            OAuthRevocationResponseDTO revokeRespDTO, AccessTokenDO accessTokenDO) {
         OAuthEventInterceptor oAuthEventInterceptorProxy = OAuthComponentServiceHolder.getInstance()
                 .getOAuthEventInterceptorProxy();
 
-        for (AccessTokenDO accessTokenDO : accessTokenDOs) {
-            if (oAuthEventInterceptorProxy != null && oAuthEventInterceptorProxy.isEnabled()) {
-                try {
-                    Map<String, Object> paramMap = new HashMap<>();
-                    oAuthEventInterceptorProxy.onPostTokenRevocationByResourceOwner(revokeRequestDTO, revokeRespDTO,
-                            accessTokenDO, paramMap);
-                } catch (IdentityOAuth2Exception e) {
-                    log.error("Error occurred with post revocation listener ", e);
-                }
+        if (oAuthEventInterceptorProxy != null && oAuthEventInterceptorProxy.isEnabled()) {
+            try {
+                Map<String, Object> paramMap = new HashMap<>();
+                oAuthEventInterceptorProxy.onPostTokenRevocationByResourceOwner(revokeRequestDTO, revokeRespDTO,
+                        accessTokenDO, paramMap);
+            } catch (IdentityOAuth2Exception e) {
+                log.error("Error occurred with post revocation listener ", e);
             }
         }
     }
