@@ -80,10 +80,6 @@ public class OAuth2TokenEndpoint {
             startSuperTenantFlow();
             validateRepeatedParams(request, paramMap);
 
-            if (isAuthorizationHeaderExists(request)) {
-                validateAuthorizationHeader(request, paramMap);
-            }
-
             HttpServletRequestWrapper httpRequest = new OAuthRequestWrapper(request, paramMap);
 
             CarbonOAuthTokenRequest oauthRequest = buildCarbonOAuthTokenRequest(httpRequest);
@@ -221,48 +217,6 @@ public class OAuth2TokenEndpoint {
             log.debug("Consumer key:" + httpRequest.getParameter(OAuth.OAUTH_CLIENT_ID));
         }
         return httpRequest.getParameter(OAuth.OAUTH_CLIENT_ID);
-    }
-
-    private void validateAuthorizationHeader(HttpServletRequest request, MultivaluedMap<String, String> paramMap)
-            throws TokenEndpointAccessDeniedException {
-
-        try {
-            // The client MUST NOT use more than one authentication method in each request
-            if (isClientCredentialsExistsAsParams(paramMap)) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Client Id and Client Secret found in request body and Authorization header" +
-                            ". Credentials should be sent in either request body or Authorization header, not both");
-                }
-                throw new TokenEndpointAccessDeniedException("Client Authentication failed");
-            }
-            String[] credentials = getClientCredentials(request);
-            // add the credentials available in Authorization header to the parameter map
-            paramMap.add(OAuth.OAUTH_CLIENT_ID, credentials[0]);
-            paramMap.add(OAuth.OAUTH_CLIENT_SECRET, credentials[1]);
-
-            if (log.isDebugEnabled()) {
-                log.debug("Client credentials extracted from the Authorization Header");
-            }
-
-        } catch (OAuthClientException e) {
-            // malformed credential string is considered as an auth failure.
-            if (log.isDebugEnabled()) {
-                log.error("Error while extracting credentials from authorization header", e);
-            }
-        }
-    }
-
-    private boolean isClientCredentialsExistsAsParams(MultivaluedMap<String, String> paramMap) {
-        return paramMap.containsKey(OAuth.OAUTH_CLIENT_ID) && paramMap.containsKey(OAuth.OAUTH_CLIENT_SECRET);
-    }
-
-    private String[] getClientCredentials(HttpServletRequest request) throws OAuthClientException {
-        return EndpointUtil.extractCredentialsFromAuthzHeader(
-                request.getHeader(OAuthConstants.HTTP_REQ_HEADER_AUTHZ));
-    }
-
-    private boolean isAuthorizationHeaderExists(HttpServletRequest request) {
-        return request.getHeader(OAuthConstants.HTTP_REQ_HEADER_AUTHZ) != null;
     }
 
     private Response handleBasicAuthFailure() throws OAuthSystemException {

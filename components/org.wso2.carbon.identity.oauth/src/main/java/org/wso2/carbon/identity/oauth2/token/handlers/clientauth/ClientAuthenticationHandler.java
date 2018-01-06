@@ -53,7 +53,7 @@ public interface ClientAuthenticationHandler {
      * @param tokReqMsgCtx
      * @return client-id that can be identified by the given authentication mechanism
      */
-    default public String getClientId(OAuthTokenReqMessageContext tokReqMsgCtx){
+    default public String getClientId(OAuthTokenReqMessageContext tokReqMsgCtx) throws IdentityOAuth2Exception{
         return tokReqMsgCtx.getOauth2AccessTokenReqDTO().getClientId();
     }
 

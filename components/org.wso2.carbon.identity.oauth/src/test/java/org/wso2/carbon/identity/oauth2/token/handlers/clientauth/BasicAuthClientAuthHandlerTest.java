@@ -26,6 +26,7 @@ import org.wso2.carbon.identity.oauth.common.exception.InvalidOAuthClientExcepti
 import org.wso2.carbon.identity.oauth.config.OAuthServerConfiguration;
 import org.wso2.carbon.identity.oauth2.IdentityOAuth2Exception;
 import org.wso2.carbon.identity.oauth2.dto.OAuth2AccessTokenReqDTO;
+import org.wso2.carbon.identity.oauth2.model.HttpRequestHeader;
 import org.wso2.carbon.identity.oauth2.token.OAuthTokenReqMessageContext;
 import org.wso2.carbon.identity.oauth2.util.OAuth2Util;
 import org.wso2.carbon.identity.testutil.powermock.PowerMockIdentityBaseTest;
@@ -103,6 +104,7 @@ public class BasicAuthClientAuthHandlerTest extends PowerMockIdentityBaseTest {
 		mockStatic(OAuth2Util.class);
 		when(OAuth2Util.authenticateClient(anyString(), anyString())).thenReturn(false);
 		testclass.init((Properties) properties);
+
 		testclass.authenticateClient((OAuthTokenReqMessageContext) oAuthTokenReqMessageContext);
 	}
 
@@ -157,35 +159,18 @@ public class BasicAuthClientAuthHandlerTest extends PowerMockIdentityBaseTest {
 
 		oauth2AccessTokenReqDTO.setClientId("testClientID");
 		OAuthTokenReqMessageContext tokReqMsgCtx2 = new OAuthTokenReqMessageContext(oauth2AccessTokenReqDTO);
-		assertTrue(testclass.canAuthenticate(tokReqMsgCtx2));
+		assertFalse(testclass.canAuthenticate(tokReqMsgCtx2));
 	}
 
-	@DataProvider(name = "provideProperties")
-	public Object[][] createProperties() {
-
-		Properties properties1 = new Properties();
-		Properties properties2 = new Properties();
-		Properties properties3 = new Properties();
-		properties1.setProperty("StrictClientCredentialValidation", "false");
-		properties2.setProperty("StrictClientCredentialValidation", "true");
-		properties3.setProperty("StrictClientCredentialValidation", "");
-
-		return new Object[][]{
-				{properties1, true},
-				{properties2, false},
-				{properties3, false},
-		};
-
-	}
-
-	@Test(dataProvider = "provideProperties")
-	public void testCanAuthenticateInElse(Object properties, boolean expectedvalue) throws IdentityOAuth2Exception {
+	@Test
+	public void testCanAuthenticateWithAuthHeader() throws IdentityOAuth2Exception {
 
 		OAuth2AccessTokenReqDTO oauth2AccessTokenReqDTO = new OAuth2AccessTokenReqDTO();
-		oauth2AccessTokenReqDTO.setGrantType("urn:ietf:params:oauth:grant-type:saml2-bearer");
-		testclass.init((Properties) properties);
-		OAuthTokenReqMessageContext tokReqMsgCtx = new OAuthTokenReqMessageContext(oauth2AccessTokenReqDTO);
-		assertEquals(testclass.canAuthenticate(tokReqMsgCtx), expectedvalue);
+		OAuthTokenReqMessageContext tokReqMsgCtx1 = new OAuthTokenReqMessageContext(oauth2AccessTokenReqDTO);
+		HttpRequestHeader httpRequestHeader = new HttpRequestHeader("Authorization", "Basic Value");
+		tokReqMsgCtx1.getOauth2AccessTokenReqDTO().setHttpRequestHeaders(new HttpRequestHeader[]{httpRequestHeader});
+		assertTrue(testclass.canAuthenticate(tokReqMsgCtx1));
+
 	}
 
 }
