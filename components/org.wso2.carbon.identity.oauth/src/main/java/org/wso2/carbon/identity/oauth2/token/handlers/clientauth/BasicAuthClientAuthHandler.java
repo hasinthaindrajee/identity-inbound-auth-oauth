@@ -25,7 +25,9 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.oltu.oauth2.common.OAuth;
+import org.wso2.carbon.identity.base.IdentityException;
 import org.wso2.carbon.identity.oauth.IdentityOAuthAdminException;
+import org.wso2.carbon.identity.oauth.common.OAuth2ErrorCodes;
 import org.wso2.carbon.identity.oauth.common.OAuthConstants;
 import org.wso2.carbon.identity.oauth.common.exception.InvalidOAuthClientException;
 import org.wso2.carbon.identity.oauth.common.exception.OAuthClientException;
@@ -46,16 +48,7 @@ public class BasicAuthClientAuthHandler extends AbstractClientAuthHandler {
 
         if (isAuthorizationHeaderExists(tokReqMsgCtx)) {
             validateAuthorizationHeader(tokReqMsgCtx);
-            try {
-                extractCredentialsFromAuthzHeader(getAuthorizationHeader(tokReqMsgCtx));
-            } catch (OAuthClientException e) {
-                String errorMessage = "Error while extracting client id and secret from authoriztion header";
-                log.error(errorMessage);
-                if (log.isDebugEnabled()) {
-                    log.error(errorMessage, e);
-                }
-            }
-            return false;
+            extractCredentialsFromAuthzHeader(getAuthorizationHeader(tokReqMsgCtx));
         } else {
             setClientCredentialsFromParam(tokReqMsgCtx);
         }
@@ -73,9 +66,10 @@ public class BasicAuthClientAuthHandler extends AbstractClientAuthHandler {
                 return OAuth2Util.authenticateClient(oAuth2AccessTokenReqDTO.getClientId(),
                         oAuth2AccessTokenReqDTO.getClientSecret());
             } catch (IdentityOAuthAdminException e) {
-                throw new IdentityOAuth2Exception("Error while authenticating client", e);
+                throw new OAuth2ClientAuthException(OAuth2ErrorCodes.INVALID_CLIENT, "Error while authenticating client", e);
             } catch (InvalidOAuthClientException e) {
-                throw new IdentityOAuth2Exception("Invalid Client : " + oAuth2AccessTokenReqDTO.getClientId(), e);
+                throw new OAuth2ClientAuthException(OAuth2ErrorCodes.INVALID_CLIENT,
+                        "Invalid Client : " + oAuth2AccessTokenReqDTO.getClientId(), e);
             }
         }
     }
@@ -97,12 +91,7 @@ public class BasicAuthClientAuthHandler extends AbstractClientAuthHandler {
         } else {
             if (isAuthorizationHeaderExists(tokReqMsgCtx)) {
                 validateAuthorizationHeader(tokReqMsgCtx);
-                try {
-                    extractCredentialsFromAuthzHeader(getAuthorizationHeader(tokReqMsgCtx));
-                } catch (OAuthClientException e) {
-                    String errorMessage = "Error while extracting client id and secret from authoriztion header";
-                    throw new IdentityOAuth2Exception(errorMessage, e);
-                }
+                extractCredentialsFromAuthzHeader(getAuthorizationHeader(tokReqMsgCtx));
             } else {
                 setClientCredentialsFromParam(tokReqMsgCtx);
             }
@@ -119,7 +108,8 @@ public class BasicAuthClientAuthHandler extends AbstractClientAuthHandler {
                 log.debug("Client Id and Client Secret found in request body and Authorization header" +
                         ". Credentials should be sent in either request body or Authorization header, not both");
             }
-            throw new IdentityOAuth2Exception("Client Authentication failed");
+            throw new OAuth2ClientAuthException(OAuth2ErrorCodes.INVALID_REQUEST , "Request body and headers contain " +
+                    "authorization information");
         }
     }
 
@@ -159,10 +149,10 @@ public class BasicAuthClientAuthHandler extends AbstractClientAuthHandler {
     }
 
     private static String[] extractCredentialsFromAuthzHeader(String authorizationHeader)
-            throws OAuthClientException {
+            throws OAuth2ClientAuthException {
 
         if (authorizationHeader == null) {
-            throw new OAuthClientException("Authorization header value is null");
+            throw new OAuth2ClientAuthException("Authorization header value is null");
         }
         String[] splitValues = authorizationHeader.trim().split(" ");
         if (splitValues.length == 2) {
@@ -175,7 +165,7 @@ public class BasicAuthClientAuthHandler extends AbstractClientAuthHandler {
         }
         String errMsg = "Error decoding authorization header. Space delimited \"<authMethod> <base64Hash>\" format " +
                 "violated.";
-        throw new OAuthClientException(errMsg);
+        throw new OAuth2ClientAuthException(OAuth2ErrorCodes.INVALID_CLIENT, errMsg);
     }
 
     private void setClientCredentialsFromParam(OAuthTokenReqMessageContext tokenReqMessageContext) {

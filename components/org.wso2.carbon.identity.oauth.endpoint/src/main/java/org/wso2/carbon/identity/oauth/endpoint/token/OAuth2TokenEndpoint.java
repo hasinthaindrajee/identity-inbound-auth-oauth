@@ -18,6 +18,7 @@
 
 package org.wso2.carbon.identity.oauth.endpoint.token;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.oltu.oauth2.as.response.OAuthASResponse;
@@ -42,6 +43,7 @@ import org.wso2.carbon.identity.oauth.endpoint.util.EndpointUtil;
 import org.wso2.carbon.identity.oauth2.ResponseHeader;
 import org.wso2.carbon.identity.oauth2.dto.OAuth2AccessTokenReqDTO;
 import org.wso2.carbon.identity.oauth2.dto.OAuth2AccessTokenRespDTO;
+import org.wso2.carbon.identity.oauth2.dto.OAuth2TokenValidationResponseDTO;
 import org.wso2.carbon.identity.oauth2.model.CarbonOAuthTokenRequest;
 
 import javax.servlet.http.HttpServletRequest;
@@ -184,7 +186,7 @@ public class OAuth2TokenEndpoint {
 
         // if there is an auth failure, HTTP 401 Status Code should be sent back to the client.
         if (OAuth2ErrorCodes.INVALID_CLIENT.equals(oauth2AccessTokenResp.getErrorCode())) {
-            return handleBasicAuthFailure();
+            return handleBasicAuthFailure(oauth2AccessTokenResp);
         } else if (SQL_ERROR.equals(oauth2AccessTokenResp.getErrorCode())) {
             return handleSQLError();
         } else if (OAuth2ErrorCodes.SERVER_ERROR.equals(oauth2AccessTokenResp.getErrorCode())) {
@@ -219,10 +221,14 @@ public class OAuth2TokenEndpoint {
         return httpRequest.getParameter(OAuth.OAUTH_CLIENT_ID);
     }
 
-    private Response handleBasicAuthFailure() throws OAuthSystemException {
+    private Response handleBasicAuthFailure(OAuth2AccessTokenRespDTO oAuth2AccessTokenRespDTO) throws OAuthSystemException {
+        String description = oAuth2AccessTokenRespDTO.getErrorMsg();
+        if (StringUtils.isEmpty(description)) {
+            description = "Client Authentication failed.";
+        }
         OAuthResponse response = OAuthASResponse.errorResponse(HttpServletResponse.SC_UNAUTHORIZED)
                 .setError(OAuth2ErrorCodes.INVALID_CLIENT)
-                .setErrorDescription("Client Authentication failed.").buildJSONMessage();
+                .setErrorDescription(description).buildJSONMessage();
         return Response.status(response.getResponseStatus())
                 .header(OAuthConstants.HTTP_RESP_HEADER_AUTHENTICATE, EndpointUtil.getRealmInfo())
                 .entity(response.getBody()).build();

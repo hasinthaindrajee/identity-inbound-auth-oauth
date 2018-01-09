@@ -44,6 +44,7 @@ import org.wso2.carbon.identity.oauth2.ResponseHeader;
 import org.wso2.carbon.identity.oauth2.dto.OAuth2AccessTokenReqDTO;
 import org.wso2.carbon.identity.oauth2.dto.OAuth2AccessTokenRespDTO;
 import org.wso2.carbon.identity.oauth2.token.handlers.clientauth.ClientAuthenticationHandler;
+import org.wso2.carbon.identity.oauth2.token.handlers.clientauth.OAuth2ClientAuthException;
 import org.wso2.carbon.identity.oauth2.token.handlers.grant.AuthorizationGrantHandler;
 import org.wso2.carbon.identity.oauth2.util.OAuth2Util;
 import org.wso2.carbon.identity.openidconnect.IDTokenBuilder;
@@ -169,7 +170,20 @@ public class AccessTokenIssuer {
         boolean isAuthenticated = false;
         // If the client is not confidential then there is no need to authenticate the client.
         if (clientAuthHandler != null && authzGrantHandler.isConfidentialClient()) {
-            isAuthenticated = clientAuthHandler.authenticateClient(tokReqMsgCtx);
+            try {
+                isAuthenticated = clientAuthHandler.authenticateClient(tokReqMsgCtx);
+            } catch (OAuth2ClientAuthException e) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Error while authenticating client ", e);
+                }
+                tokenRespDTO = handleError(
+                        e.getErrorCode(),
+                        e.getMessage(), tokenReqDTO);
+                setResponseHeaders(tokReqMsgCtx, tokenRespDTO);
+                triggerPostListeners(tokenReqDTO, tokenRespDTO, tokReqMsgCtx, isRefreshRequest);
+                return tokenRespDTO;
+            }
+
         } else if (!authzGrantHandler.isConfidentialClient()) {
             if (StringUtils.isEmpty(tokenReqDTO.getClientId())) {
                 if (clientAuthHandler != null) {
